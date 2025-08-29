@@ -1,0 +1,272 @@
+import tkinter as tk
+from tkinter import messagebox
+import json, os, re
+
+USER_FILE = "users.json"
+
+# ===== Helper functions =====
+def load_users():
+    if os.path.exists(USER_FILE):
+        with open(USER_FILE, "r") as f:
+            return json.load(f)
+    return {}
+
+def save_users(users):
+    with open(USER_FILE, "w") as f:
+        json.dump(users, f, indent=4)
+
+# Password rules
+def password_requirements(password):
+    rules = {
+        "Length (≥ 8 chars)": len(password) >= 8,
+        "At least 1 uppercase": bool(re.search(r"[A-Z]", password)),
+        "At least 1 lowercase": bool(re.search(r"[a-z]", password)),
+        "At least 1 digit": bool(re.search(r"\d", password)),
+        "At least 1 special char": bool(re.search(r"[!@#$%^&*(),.?\":{}|<>]", password))
+    }
+    return rules
+
+# Credit card validation (Luhn Algorithm)
+def validate_credit_card(number: str) -> bool:
+    number = number.replace(" ", "")
+    if not number.isdigit() or len(number) < 13 or len(number) > 19:
+        return False
+    total = 0
+    reverse_digits = number[::-1]
+    for i, digit in enumerate(reverse_digits):
+        n = int(digit)
+        if i % 2 == 1:  # Double every second digit
+            n *= 2
+            if n > 9:
+                n -= 9
+        total += n
+    return total % 10 == 0
+
+# ===== Main App Class =====
+class FuelPaymentApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Smart Rechargeable Fuel Payment System")
+        self.root.geometry("600x750")
+        self.root.configure(bg="#3E1E68")
+
+        self.users = load_users()
+        self.current_user = None
+
+        self.btn_style = {"bg": "#6A0DAD", "fg": "white", "font": ("Arial", 11, "bold"),
+                          "activebackground": "#8A2BE2", "activeforeground": "white", "relief": "flat", "width": 25}
+        self.entry_style = {"bg": "#f3e6ff", "fg": "#2c003e", "insertbackground": "#6A0DAD",
+                            "relief": "flat", "font": ("Arial", 11)}
+
+        self.show_main_menu()
+
+    def show_main_menu(self):
+        self.clear_frame()
+        tk.Label(self.root, text="Welcome to Smart Fuel Payment System",
+                 font=("Arial", 16, "bold"), bg="#3E1E68", fg="white").pack(pady=30)
+
+        tk.Button(self.root, text="Login", command=self.show_login, **self.btn_style).pack(pady=12)
+        tk.Button(self.root, text="Register", command=self.show_register, **self.btn_style).pack(pady=12)
+        tk.Button(self.root, text="Exit", command=self.root.quit, **self.btn_style).pack(pady=12)
+
+    def show_register(self):
+        self.clear_frame()
+        tk.Label(self.root, text="Register New Account", font=("Arial", 14, "bold"),
+                 bg="#3E1E68", fg="white").pack(pady=15)
+
+        # Username
+        tk.Label(self.root, text="Username", bg="#3E1E68", fg="white").pack()
+        username_entry = tk.Entry(self.root, **self.entry_style)
+        username_entry.pack()
+
+        # Password
+        tk.Label(self.root, text="Password", bg="#3E1E68", fg="white").pack()
+        password_entry = tk.Entry(self.root, show="*", **self.entry_style)
+        password_entry.pack()
+
+        # Confirm Password
+        tk.Label(self.root, text="Confirm Password", bg="#3E1E68", fg="white").pack()
+        confirm_entry = tk.Entry(self.root, show="*", **self.entry_style)
+        confirm_entry.pack()
+
+        # Credit card
+        tk.Label(self.root, text="Credit Card Number", bg="#3E1E68", fg="white").pack()
+        card_entry = tk.Entry(self.root, **self.entry_style)
+        card_entry.pack()
+
+        # MTN number
+        tk.Label(self.root, text="MTN Number (9 digits)", bg="#3E1E68", fg="white").pack()
+        mtn_entry = tk.Entry(self.root, **self.entry_style)
+        mtn_entry.pack()
+
+        # Orange number
+        tk.Label(self.root, text="Orange Number (9 digits)", bg="#3E1E68", fg="white").pack()
+        orange_entry = tk.Entry(self.root, **self.entry_style)
+        orange_entry.pack()
+
+        # Fuel card
+        tk.Label(self.root, text="Fuel Card (12 digits)", bg="#3E1E68", fg="white").pack()
+        fuel_entry = tk.Entry(self.root, **self.entry_style)
+        fuel_entry.pack()
+
+        # Initial Balance
+        tk.Label(self.root, text="Initial Balance (CFA)", bg="#3E1E68", fg="white").pack()
+        balance_entry = tk.Entry(self.root, **self.entry_style)
+        balance_entry.pack()
+
+        def register_user():
+            username = username_entry.get().strip()
+            password = password_entry.get().strip()
+            confirm = confirm_entry.get().strip()
+            card = card_entry.get().strip()
+            mtn = mtn_entry.get().strip()
+            orange = orange_entry.get().strip()
+            fuel = fuel_entry.get().strip()
+            balance = balance_entry.get().strip()
+
+            if username in self.users:
+                messagebox.showerror("Error", "Username already exists!")
+                return
+            if not username or not password or not confirm or not card or not balance:
+                messagebox.showerror("Error", "All fields are required!")
+                return
+            if not all(password_requirements(password).values()):
+                messagebox.showerror("Weak Password", "Password does not meet all requirements!")
+                return
+            if password != confirm:
+                messagebox.showerror("Error", "Passwords do not match!")
+                return
+            if not validate_credit_card(card):
+                messagebox.showerror("Error", "Invalid credit card number!")
+                return
+            if not (mtn.isdigit() and len(mtn) == 9):
+                messagebox.showerror("Error", "Invalid MTN number!")
+                return
+            if not (orange.isdigit() and len(orange) == 9):
+                messagebox.showerror("Error", "Invalid Orange number!")
+                return
+            if not (fuel.isdigit() and len(fuel) == 12):
+                messagebox.showerror("Error", "Invalid Fuel Card number!")
+                return
+            if not balance.isdigit():
+                messagebox.showerror("Error", "Balance must be a number!")
+                return
+
+            self.users[username] = {
+                "password": password,
+                "credit_card": card,
+                "mtn": mtn,
+                "orange": orange,
+                "fuel_card": fuel,
+                "balance": float(balance)
+            }
+            save_users(self.users)
+
+            messagebox.showinfo("Success", "Account registered successfully!")
+            self.show_main_menu()
+
+        tk.Button(self.root, text="Register", command=register_user, **self.btn_style).pack(pady=12)
+        tk.Button(self.root, text="Back", command=self.show_main_menu, **self.btn_style).pack(pady=5)
+
+    def show_login(self):
+        self.clear_frame()
+        tk.Label(self.root, text="Login", font=("Arial", 14, "bold"),
+                 bg="#3E1E68", fg="white").pack(pady=15)
+
+        tk.Label(self.root, text="Username", bg="#3E1E68", fg="white").pack()
+        username_entry = tk.Entry(self.root, **self.entry_style)
+        username_entry.pack()
+
+        tk.Label(self.root, text="Password", bg="#3E1E68", fg="white").pack()
+        password_entry = tk.Entry(self.root, show="*", **self.entry_style)
+        password_entry.pack()
+
+        def login_user():
+            username = username_entry.get().strip()
+            password = password_entry.get().strip()
+            if username in self.users and self.users[username]["password"] == password:
+                self.current_user = username
+                messagebox.showinfo("Success", f"Welcome, {username}!")
+                self.show_dashboard()
+            else:
+                messagebox.showerror("Error", "Invalid username or password!")
+
+        tk.Button(self.root, text="Login", command=login_user, **self.btn_style).pack(pady=12)
+        tk.Button(self.root, text="Back", command=self.show_main_menu, **self.btn_style).pack(pady=5)
+
+    def show_dashboard(self):
+        self.clear_frame()
+        user_data = self.users[self.current_user]
+
+        tk.Label(self.root, text=f"Dashboard - {self.current_user}",
+                 font=("Arial", 14, "bold"), bg="#3E1E68", fg="white").pack(pady=15)
+
+        self.info_label = tk.Label(self.root,
+            text=f"""
+Username: {self.current_user}
+Password: {'*' * len(user_data['password'])}
+Credit Card: {'*' * len(user_data['credit_card'])}
+MTN: {'*' * len(user_data['mtn'])}
+Orange: {'*' * len(user_data['orange'])}
+Fuel Card: {'*' * len(user_data['fuel_card'])}
+Balance: {user_data['balance']} CFA
+""",
+            bg="#3E1E68", fg="lightyellow", font=("Courier", 11), justify="left"
+        )
+        self.info_label.pack(pady=10)
+
+        # Buttons (Show/Hide swap)
+        self.show_btn = tk.Button(self.root, text="Show Sensitive Info", command=self.verify_code, **self.btn_style)
+        self.show_btn.pack(pady=5)
+
+        self.hide_btn = tk.Button(self.root, text="Hide Now", command=self.hide_sensitive, **self.btn_style)
+        # Start hidden
+        self.hide_btn.pack_forget()
+
+        tk.Button(self.root, text="Logout", command=self.show_main_menu, **self.btn_style).pack(pady=20)
+
+    def verify_code(self):
+        code = tk.simpledialog.askstring("Verification", "Enter verification code:")
+        if code == "23415":
+            self.reveal_sensitive()
+        else:
+            messagebox.showerror("Error", "Wrong code, please try again!")
+
+    def reveal_sensitive(self):
+        user_data = self.users[self.current_user]
+        self.info_label.config(text=f"""
+Username: {self.current_user}
+Password: {user_data['password']}
+Credit Card: {user_data['credit_card']}
+MTN: {user_data['mtn']}
+Orange: {user_data['orange']}
+Fuel Card: {user_data['fuel_card']}
+Balance: {user_data['balance']} CFA
+""")
+        # Swap buttons
+        self.show_btn.pack_forget()
+        self.hide_btn.pack(pady=5)
+
+    def hide_sensitive(self):
+        user_data = self.users[self.current_user]
+        self.info_label.config(text=f"""
+Username: {self.current_user}
+Password: {'*' * len(user_data['password'])}
+Credit Card: {'*' * len(user_data['credit_card'])}
+MTN: {'*' * len(user_data['mtn'])}
+Orange: {'*' * len(user_data['orange'])}
+Fuel Card: {'*' * len(user_data['fuel_card'])}
+Balance: {user_data['balance']} CFA
+""")
+        # Swap buttons
+        self.hide_btn.pack_forget()
+        self.show_btn.pack(pady=5)
+
+    def clear_frame(self):
+        for widget in self.root.winfo_children():
+            widget.destroy()
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = FuelPaymentApp(root)
+    root.mainloop()
